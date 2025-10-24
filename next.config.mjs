@@ -7,7 +7,9 @@ const nextConfig = {
         hostname: "i.ibb.co",
         pathname: "/**",
       },
+      
     ],
+    domains: ["lh3.googleusercontent.com"]
   },
 };
 

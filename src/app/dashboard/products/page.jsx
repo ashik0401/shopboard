@@ -1,39 +1,42 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import Image from "next/image";
+import { Sparklines, SparklinesLine } from "react-sparklines";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
+import { ChevronDown, Edit, Trash } from "lucide-react";
 import {
   Select,
+  SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, CheckCircle, X, Edit, Trash } from "lucide-react";
-import Image from "next/image";
-import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import ProductUpdateModal from "./update/updateForm";
+import { motion } from "framer-motion";
+
+const MotionButton = (props) => (
+  <motion.div
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+    className="inline-block"
+  >
+    <Button {...props} />
+  </motion.div>
+);
 
 const formSchema = z.object({
   productName: z.string().min(1),
@@ -61,7 +64,20 @@ const uploadToImgbb = async (file) => {
 
 const fetchProducts = async () => {
   const stored = JSON.parse(localStorage.getItem("products") || "[]");
-  return stored;
+  const updated = stored.map((p) => {
+    if (!p.salesTrend)
+      p.salesTrend = Array.from({ length: 7 }, () =>
+        Math.floor(Math.random() * 100)
+      );
+    if (!p.satisfaction)
+      p.satisfaction = ["😀", "😐", "😡"][Math.floor(Math.random() * 3)];
+    if (!p.delivery) p.delivery = Math.floor(Math.random() * 100);
+    if (!p.createdAt) p.createdAt = Date.now();
+    return p;
+  });
+  updated.sort((a, b) => b.createdAt - a.createdAt);
+  localStorage.setItem("products", JSON.stringify(updated));
+  return updated;
 };
 
 export default function ProductListPage() {
@@ -71,6 +87,14 @@ export default function ProductListPage() {
   const [preview, setPreview] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [filters, setFilters] = useState({
+    category: "all",
+    status: "all",
+    maxPrice: 10000,
+  });
+  const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
+  const [showFilter, setShowFilter] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -91,19 +115,14 @@ export default function ProductListPage() {
     isLoading,
     isError,
     error,
-  } = useQuery({
-    queryKey: ["products"],
-    queryFn: fetchProducts,
-  });
-
+  } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   if (isError) toast.error(error?.message || "Failed to load products");
 
   const updateMutation = useMutation({
     mutationFn: async (updated) => {
       let imageUrl = updated.image;
-      if (updated.image instanceof File) {
+      if (updated.image instanceof File)
         imageUrl = await uploadToImgbb(updated.image);
-      }
       const stored = JSON.parse(localStorage.getItem("products") || "[]");
       const index = stored.findIndex((p) => p.id === updated.id);
       stored[index] = { ...updated, image: imageUrl };
@@ -128,314 +147,317 @@ export default function ProductListPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
   });
 
-  const openEdit = (product) => {
-    setEditingProduct(product);
-    form.reset(product);
-    setPreview(product.image || null);
-  };
-
-  const onSubmit = (data) => {
-    const updated = { ...editingProduct, ...data };
-    updateMutation.mutate(updated);
-  };
-
-  const totalPages = Math.ceil(products.length / itemsPerPage);
-  const paginatedProducts = products.slice(
+  const openEdit = (product) => setEditingProduct(product);
+  const onSubmit = (data) =>
+    updateMutation.mutate({ ...editingProduct, ...data });
+  const handleRowSelect = (id) =>
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
+    );
+  const handleSelectAll = () =>
+    setSelectedRows(
+      selectedRows.length === paginatedProducts.length
+        ? []
+        : paginatedProducts.map((p) => p.id)
+    );
+  const handleSort = (key) =>
+    setSortConfig((prev) =>
+      prev.key === key
+        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: "asc" }
+    );
+  const maxProductPrice = useMemo(
+    () =>
+      products.length
+        ? Math.max(...products.map((p) => Number(p.price)))
+        : 10000,
+    [products]
+  );
+  const filteredProducts = useMemo(
+    () =>
+      products
+        .filter((p) =>
+          filters.category !== "all" ? p.category === filters.category : true
+        )
+        .filter((p) =>
+          filters.status !== "all"
+            ? filters.status === "active"
+              ? p.active
+              : !p.active
+            : true
+        )
+        .filter((p) => Number(p.price) <= filters.maxPrice),
+    [products, filters]
+  );
+  const sortedProducts = useMemo(() => {
+    const base = [...filteredProducts].sort(
+      (a, b) => b.createdAt - a.createdAt
+    );
+    if (!sortConfig.key) return base;
+    return [...base].sort((a, b) => {
+      const valA = a[sortConfig.key],
+        valB = b[sortConfig.key];
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredProducts, sortConfig]);
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const paginatedProducts = sortedProducts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const stockColor = (stock) =>
+    stock > 50 ? "bg-green-400" : stock < 10 ? "bg-red-500" : "bg-yellow-400";
+  const handleBulkDelete = () => {
+    selectedRows.forEach((id) => deleteMutation.mutate(id));
+    setSelectedRows([]);
+  };
 
   return (
-    <div>
-      <div className="flex justify-between items-center m-4">
-        <h1 className="text-2xl font-bold text-white">Products</h1>
-        <Button
-          className="cursor-pointer"
-          onClick={() => router.push("/dashboard/products/create")}
-        >
-          Add Product
-        </Button>
-      </div>
-
-      {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <div className="h-48 bg-gray-200 rounded-md mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {!isLoading && (
-        <>
-          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {paginatedProducts.map((product) => (
-             <Card key={product.id} className="relative flex flex-col h-full">
-  {product.image && (
-    <div className="w-full h-48 md:h-60 lg:h-64 overflow-hidden rounded-t-md border-b">
-      <Image
-        src={product.image}
-        alt={product.productName}
-        width={600}
-        height={400}
-        className="object-cover w-full h-full"
-      />
-    </div>
-  )}
-  <CardContent className="flex-1 p-6  flex flex-col justify-between ">
-    <div>
-      <CardTitle className="mb-2 font-bold">{product.productName.toUpperCase()}</CardTitle>
-      <p><strong>SKU:</strong> {product.sku}</p>
-      <p><strong>Category:</strong> {product.category}</p>
-      <p><strong>Price:</strong> {product.price} BDT</p>
-      <p><strong>Stock:</strong> {product.stock}</p>
-      <p><strong>Status:</strong> {product.active ? "Active" : "Inactive"}</p>
-      <p><strong>Description:</strong> {product.description}</p>
-    </div>
-    <CardFooter className="flex w-full mt-4 gap-0 pb-0">
-  <Button className="flex-1 cursor-pointer rounded-r-none" onClick={() => openEdit(product)}>Edit</Button>
-  <Button className="flex-1 cursor-pointer rounded-l-none" variant="destructive" onClick={() => deleteMutation.mutate(product.id)}>Delete</Button>
-</CardFooter>
-
-  </CardContent>
-</Card>
-
-            ))}
-          </div>
-
-          <div className="flex justify-center gap-2 mt-4">
-            <Button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
+    <div className="p-4">
+      <div className="flex sm:flex-row sm:justify-between sm:items-center mb-4 flex-wrap flex-col gap-2">
+        <h1 className="text-2xl font-bold ">Products</h1>
+        <div className="flex gap-2 flex-wrap">
+          <MotionButton
+            className="cursor-pointer"
+            onClick={() => router.push("/dashboard/products/create")}
+          >
+            Add Product
+          </MotionButton>
+          {selectedRows.length > 0 && (
+            <MotionButton
+              className="cursor-pointer"
+              variant="destructive"
+              onClick={handleBulkDelete}
             >
-              Previous
-            </Button>
-            <span className="px-3 py-1">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
+              Delete Selected ({selectedRows.length})
+            </MotionButton>
+          )}
+          <div className="relative">
+            <MotionButton
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => setShowFilter(!showFilter)}
             >
-              Next
-            </Button>
-          </div>
-        </>
-      )}
-
-      {editingProduct && (
-        <div className="fixed inset-0 bg-gray-200/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-3xl relative">
-            <Button
-              className="flex justify-end cursor-pointer text-red-500 w-full"
-              variant="ghost"
-              onClick={() => {
-                setEditingProduct(null);
-                setPreview(null);
-              }}
-            >
-              <X />
-            </Button>
-            <CardHeader className="flex justify-between items-center">
-              <CardTitle>Edit Product</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-4"
+              Filter / Sort <ChevronDown className="w-4 h-4" />
+            </MotionButton>
+            {showFilter && (
+              <div className="absolute right-0 mt-2 w-80 bg-white shadow-md rounded-md p-4 z-50 flex flex-col gap-4">
+                <Select
+                  value={filters.category}
+                  onValueChange={(val) =>
+                    setFilters((prev) => ({ ...prev, category: val }))
+                  }
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="productName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Product Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="sku"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SKU</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(e.target.value.toUpperCase())
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <FormControl>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {["Electronics", "Furniture", "Clothing"].map(
-                                  (c) => (
-                                    <SelectItem key={c} value={c}>
-                                      {c}
-                                    </SelectItem>
-                                  )
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Price</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseFloat(e.target.value))
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="stock"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Stock Quantity</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value))
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="active"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between">
-                          <FormLabel>Active Status</FormLabel>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} className="resize-none" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["all", "Electronics", "Furniture", "Clothing"].map(
+                      (c) => (
+                        <SelectItem key={c} value={c}>
+                          {c === "all" ? "All" : c}
+                        </SelectItem>
+                      )
                     )}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filters.status}
+                  onValueChange={(val) =>
+                    setFilters((prev) => ({ ...prev, status: val }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["all", "active", "inactive"].map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s === "all"
+                          ? "All"
+                          : s === "active"
+                          ? "Active"
+                          : "Inactive"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <span className="dark:text-black">0 BDT</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxProductPrice}
+                    value={filters.maxPrice}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        maxPrice: parseFloat(e.target.value),
+                      }))
+                    }
+                    className="flex-1"
                   />
-                  <FormField
-                    control={form.control}
-                    name="image"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Product Image</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center gap-4">
-                            <label className="cursor-pointer flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md border hover:bg-gray-200">
-                              <Upload className="w-4 h-4" />
-                              <span>Upload Image</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files[0];
-                                  field.onChange(file);
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () =>
-                                      setPreview(reader.result);
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </label>
-                            {preview && (
-                              <Image
-                                src={preview}
-                                alt="Preview"
-                                width={150}
-                                height={150}
-                                className="w-16 h-16 object-cover rounded-md border"
-                              />
-                            )}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    className="w-full flex items-center gap-2 cursor-pointer"
+                  <span className="dark:text-black">{filters.maxPrice} BDT</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <MotionButton
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSort("productName")}
                   >
-                    <CheckCircle className="w-4 h-4" />
-                    Update Product
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                    Sort Name
+                  </MotionButton>
+                  <MotionButton
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSort("price")}
+                  >
+                    Sort Price
+                  </MotionButton>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
+      <div className="overflow-x-auto ">
+        <Table className="min-w-[900px] sm:min-w-full bg-white dark:bg-black text-gray-900 dark:text-white">
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                <input
+                  type="checkbox"
+                  onChange={handleSelectAll}
+                  checked={
+                    selectedRows.length === paginatedProducts.length &&
+                    paginatedProducts.length > 0
+                  }
+                />
+              </TableHead>
+              <TableHead>Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Satisfaction</TableHead>
+              <TableHead>Delivery</TableHead>
+              <TableHead>Sales</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading
+              ? Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 12 }).map((_, j) => (
+                      <td key={j} className="p-2">
+                        <div className="h-6 bg-gray-300 animate-pulse rounded" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              : paginatedProducts.map((product) => (
+                  <tr key={product.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.includes(product.id)}
+                        onChange={() => handleRowSelect(product.id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {product.image ? (
+                        <div className="w-16 h-16">
+                          <Image
+                            src={product.image}
+                            width={150}
+                            height={150}
+                            className="w-16 h-16 object-cover rounded-md"
+                            alt={product.productName}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-300 rounded-md animate-pulse" />
+                      )}
+                    </TableCell>
+                    <TableCell>{product.productName.toUpperCase()}</TableCell>
+                    <TableCell>{product.sku}</TableCell>
+                    <TableCell>{product.category}</TableCell>
+                    <TableCell>{product.price}</TableCell>
+                    <TableCell>
+                      <div
+                        className={`${stockColor(
+                          product.stock
+                        )} w-12 text-center rounded-md`}
+                      >
+                        {product.stock}
+                      </div>
+                    </TableCell>
+                    <TableCell>{product.active ? "Active" : "Inactive"}</TableCell>
+                    <TableCell>{product.satisfaction}</TableCell>
+                    <TableCell>{product.delivery}%</TableCell>
+                    <TableCell>
+                      <Sparklines data={product.salesTrend}>
+                        <SparklinesLine color="blue" />
+                      </Sparklines>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2 dark:text-white">
+                        <MotionButton
+                          className="cursor-pointer"
+                          size="icon"
+                          variant="outline"
+                          onClick={() => openEdit(product)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </MotionButton>
+                        <MotionButton
+                          className="cursor-pointer"
+                          size="icon"
+                          variant="destructive"
+                          onClick={() => deleteMutation.mutate(product.id)}
+                        >
+                          <Trash className="w-4 h-4" />
+                        </MotionButton>
+                      </div>
+                    </TableCell>
+                  </tr>
+                ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex justify-center items-center mt-4 gap-2 flex-wrap">
+        <MotionButton
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((prev) => prev - 1)}
+        >
+          Prev
+        </MotionButton>
+        <span>
+          {currentPage} / {totalPages}
+        </span>
+        <MotionButton
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((prev) => prev + 1)}
+        >
+          Next
+        </MotionButton>
+      </div>
+      <ProductUpdateModal
+        product={editingProduct}
+        form={form}
+        preview={preview}
+        setPreview={setPreview}
+        onClose={() => {
+          setEditingProduct(null);
+          setPreview(null);
+        }}
+        onSubmit={onSubmit}
+      />
     </div>
   );
 }

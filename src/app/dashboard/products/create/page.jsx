@@ -28,6 +28,13 @@ import { toast } from "react-hot-toast";
 import { Upload, CheckCircle, X } from "lucide-react";
 import Image from "next/image";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+
+const MotionButton = (props) => (
+  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full">
+    <Button {...props}/>
+  </motion.div>
+);
 
 const formSchema = z.object({
   productName: z.string().min(1),
@@ -95,127 +102,127 @@ export default function ProductCreatePage() {
   return (
     <div className="max-w-3xl mx-auto mt-10 space-y-6 relative">
       <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-2 right-2 cursor-pointer text-red-500"
+        className="absolute top-2 right-2 bg-none hover:text-red-500 cursor-pointer"
         onClick={() => router.push("/dashboard/products")}
       >
         <X />
       </Button>
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Info</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="productName" render={({ field }) => (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Info</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="productName" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Product Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter product name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="sku" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SKU</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter SKU" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="category" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["Electronics", "Furniture", "Clothing"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="price" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="Enter price" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value))} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="stock" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock Quantity</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="Enter quantity" {...field} onChange={(e) => field.onChange(parseInt(e.target.value))} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="active" render={({ field }) => (
+                    <FormItem className="flex items-center justify-between">
+                      <FormLabel>Active Status</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+                <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Product Name</FormLabel>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter product name" {...field} />
+                      <Textarea placeholder="Enter product description" className="resize-none" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="sku" render={({ field }) => (
+                <FormField control={form.control} name="image" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>SKU</FormLabel>
+                    <FormLabel>Product Image</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter SKU" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+                      <div className="flex items-center gap-4">
+                        <label className="cursor-pointer flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-200 dark:text-black">
+                          <Upload className="w-4 h-4" />
+                          <span  >Upload Image</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                            const file = e.target.files[0];
+                            field.onChange(file);
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setPreview(reader.result);
+                              reader.readAsDataURL(file);
+                            }
+                          }} />
+                        </label>
+                        {preview && <Image src={preview} alt="Preview" className="w-16 h-16 object-cover rounded-md border" width={64} height={64} />}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="category" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["Electronics", "Furniture", "Clothing"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="price" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="Enter price" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value))} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="stock" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock Quantity</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="Enter quantity" {...field} onChange={(e) => field.onChange(parseInt(e.target.value))} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="active" render={({ field }) => (
-                  <FormItem className="flex items-center justify-between">
-                    <FormLabel>Active Status</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )} />
-              </div>
-              <FormField control={form.control} name="description" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Enter product description" className="resize-none" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="image" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Image</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-4">
-                      <label className="cursor-pointer flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-200">
-                        <Upload className="w-4 h-4" />
-                        <span>Upload Image</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                          const file = e.target.files[0];
-                          field.onChange(file);
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => setPreview(reader.result);
-                            reader.readAsDataURL(file);
-                          }
-                        }} />
-                      </label>
-                      {preview && <Image src={preview} alt="Preview" className="w-16 h-16 object-cover rounded-md border" width={64} height={64} />}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <Button type="submit" className="w-full flex items-center gap-2 cursor-pointer">
-                <CheckCircle className="w-4 h-4" />
-                Add Product
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                <MotionButton type="submit" className="flex items-center w-full cursor-pointer gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Add Product
+                </MotionButton>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }
