@@ -6,7 +6,7 @@ import { Menu, X, LogOut } from "lucide-react";
 import DarkModeToggle from "./DarkModeToggle";
 import { Button } from "@/components/ui/button";
 import { useSelector, useDispatch } from "react-redux";
-import { logoutUser } from "@/redux/authSlice";
+import { logoutUser } from "../../redux/authslice";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { getAuth, onAuthStateChanged } from "firebase/auth";

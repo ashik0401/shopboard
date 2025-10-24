@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../../firebase.init";
 import { useDispatch } from "react-redux";
-import { loginUser, logoutUser } from "@/redux/authSlice";
+import { loginUser, logoutUser } from "../../redux/authslice";
 
 export default function AuthProvider({ children }) {
   const dispatch = useDispatch();

@@ -37,10 +37,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data) => {
     try {
-      await dispatch(loginUser({
-        email: data.email,
-        password: data.password,
-      })).unwrap();
+      await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
       toast.success("Login successful!");
       router.push("/");
     } catch (err) {
@@ -62,7 +59,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-black p-4">
       <Card className="w-full max-w-md shadow-lg border border-gray-200 dark:border-gray-700 rounded-xl">
         <CardHeader className="pb-0">
-          <CardTitle className="text-center text-3xl font-bold text-gray-900 dark:text-gray-100">Welcome Back</CardTitle>
+          <CardTitle className="text-center text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Welcome Back
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
           {error && (
@@ -70,9 +69,7 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-          
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {/* Email */}
             <div className="flex flex-col gap-1">
               <label className="font-medium text-gray-700 dark:text-gray-300">Email</label>
               <Input
@@ -84,7 +81,6 @@ export default function LoginPage() {
               {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
             </div>
 
-            {/* Password */}
             <div className="relative flex flex-col gap-1">
               <label className="font-medium text-gray-700 dark:text-gray-300">Password</label>
               <Input
@@ -102,29 +98,28 @@ export default function LoginPage() {
               {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
             </div>
 
-            
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full py-2.5 font-medium text-lg cursor-pointer"
               disabled={loading}
             >
               {loading ? "Logging in..." : "Login"}
             </Button>
 
-           
             <div className="flex items-center gap-3 my-3">
               <span className="flex-1 h-px bg-gray-300 dark:bg-gray-600"></span>
               <span className="text-gray-500 dark:text-gray-400 font-medium">OR</span>
               <span className="flex-1 h-px bg-gray-300 dark:bg-gray-600"></span>
             </div>
 
-            
             <GoogleButton text="Login with Google" onClick={handleGoogleLogin} />
 
-            
             <p className="text-center text-gray-600 dark:text-gray-400 mt-4">
               Don&apos;t have an account?{" "}
-              <Link href="/auth/register" className="font-bold dark:text-white text-black hover:underline">
+              <Link
+                href="/auth/register"
+                className="font-bold dark:text-white text-black hover:underline"
+              >
                 Register
               </Link>
             </p>
