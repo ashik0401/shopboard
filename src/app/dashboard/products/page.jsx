@@ -322,8 +322,8 @@ export default function ProductListPage() {
           </div>
         </div>
       </div>
-      <div className="overflow-x-auto ">
-        <Table className="min-w-[900px] sm:min-w-full bg-white dark:bg-black text-gray-900 dark:text-white">
+      <div className="overflow-x-auto rounded-2xl">
+        <Table className="min-w-[900px] sm:min-w-full bg-white dark:bg-black text-gray-900 dark:text-white ">
           <TableHeader>
             <TableRow>
               <TableHead>

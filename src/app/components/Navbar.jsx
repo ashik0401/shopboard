@@ -20,7 +20,6 @@ export default function Navbar() {
   const router = useRouter();
   const dispatch = useDispatch();
   const auth = getAuth(app);
-
   const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
@@ -29,6 +28,15 @@ export default function Navbar() {
     });
     return () => unsubscribe();
   }, [auth]);
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setProfileOpen(false);
+  }, 0);
+  return () => clearTimeout(timer);
+}, [user]);
+
+
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const handleLinkClick = () => setSidebarOpen(false);
@@ -125,7 +133,7 @@ export default function Navbar() {
             <Link
               href="/dashboard/products"
               onClick={handleLinkClick}
-              className={`block px-6 py-3 hover:bg-gray-300 transition ${
+              className={`block px-6 py-3 dark:hover:bg-gray-900 hover:bg-gray-300 transition ${
                 pathname === "/dashboard/products" ? "font-semibold " : ""
               }`}
             >
@@ -136,7 +144,7 @@ export default function Navbar() {
             <Link
               href="/dashboard/orders"
               onClick={handleLinkClick}
-              className={`block px-6 py-3 hover:bg-gray-300 transition ${
+              className={`block px-6 py-3 dark:hover:bg-gray-900  hover:bg-gray-300 transition ${
                 pathname === "/dashboard/orders" ? "font-semibold " : ""
               }`}
             >

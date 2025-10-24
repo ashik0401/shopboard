@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
 import GoogleButton from "@/app/components/GoogleButton";
 
-import { registerUser, loginWithGoogle } from "@/redux/authSlice";
+import { registerUser, loginWithGoogle } from "../../../redux/authslice";
 
 const schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),

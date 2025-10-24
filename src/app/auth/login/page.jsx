@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import GoogleButton from "@/app/components/GoogleButton";
-import { loginUser, loginWithGoogle } from "@/redux/authSlice";
+import { loginUser, loginWithGoogle } from "../../../redux/authslice";
 
 const schema = z.object({
   email: z.string().email("Invalid email"),

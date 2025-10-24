@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { SiGoogle } from "react-icons/si";
 import { useDispatch } from "react-redux";
-import { loginWithGoogle } from "@/redux/authSlice";
+import { loginWithGoogle } from "../../redux/authslice";
 import { toast } from "react-hot-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 
